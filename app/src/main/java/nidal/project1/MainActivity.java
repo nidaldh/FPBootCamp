@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
@@ -12,6 +13,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -31,12 +33,25 @@ import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.PermissionRequestErrorListener;
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Calendar;
 import java.util.List;
+
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,6 +70,62 @@ public class MainActivity extends AppCompatActivity {
         minGrad = (GridLayout) findViewById(R.id.minGrad);
 //        imageView = (ImageView) findViewById(R.id.image1);
         setSingleEvent(minGrad);
+    }
+
+    void featchImage(){
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://api.thecatapi.com")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        CatImage service = retrofit.create(CatImage.class);
+
+        System.out.println("hi");
+
+        service.get("json").enqueue(new Callback<List<CatResponse>>() {
+            @Override
+            public void onResponse(Call<List<CatResponse>> call, Response<List<CatResponse>> response) {
+                System.out.println("hi");
+                if (!response.isSuccessful()){
+                    ResponseBody errorBodey = response.errorBody();
+                    try {
+                        Log.d("RESPONSEERROR", errorBodey.string());
+                        Toast.makeText(MainActivity.this, "RESPONSEERROR", Toast.LENGTH_SHORT).show();
+                    } catch (IOException e) {
+//                        e.printStackTrace();
+                        Log.d("RESPONSEERROR",e.getMessage());
+                        Toast.makeText(MainActivity.this, "RESPONSEERROR1", Toast.LENGTH_SHORT).show();
+
+                    }
+                    return;
+                }else {
+                    System.out.println(response.body().get(0).mUrl);
+
+//                    progressBar.setVisibility(View.GONE);
+//                    left.setVisibility(View.VISIBLE);
+//                    let.setVisibility(View.VISIBLE);
+//                    linearLayout.setVisibility(View.VISIBLE);
+
+//                    right.setVisibility(View.VISIBLE);
+//                    System.out.println(response.body().getmMain().getmTemp());
+//                    left.setText(response.body().getmWeather().get(0).getmDescription());
+//                    right.setText(df2.format(response.body().getmMain().getmTemp() - 273.15)+"°");
+
+                    //                    response.body().getmMain().getmTemp();
+
+                }
+
+            }
+
+            @Override
+            public void onFailure(Call<List<CatResponse>> call, Throwable t) {
+                //TODO: Display Error;
+                Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.d("ad", t.getMessage());
+            }
+        });
+
+
     }
 
     private void setSingleEvent(GridLayout mainGrid) {
@@ -78,7 +149,9 @@ public class MainActivity extends AppCompatActivity {
                         } else if (items[item].equals("Choose from Library")) {
                             loadImage();
                         }else if (items[item].equals("Remove")){
-                            remove();
+//                            remove();
+                            featchImage();
+//                        getJSON("s");
                         }
                         else if (items[item].equals("Cancel")) {
                             dialog.dismiss();
@@ -90,6 +163,63 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+    JSONObject data = null;
+
+    public void getJSON(final String city) {
+        System.out.println("hi");
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+
+            }
+            @SuppressLint("WrongThread")
+            @Override
+            protected Void doInBackground(Void... params) {
+                System.out.println("hi2");
+                try {
+                    System.out.println("hi3");
+                    URL url = new URL("https://api.thecatapi.com/v1/images/search");
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    BufferedReader reader =
+                            new BufferedReader(new InputStreamReader(connection.getInputStream()));
+
+                    StringBuffer json = new StringBuffer(1024);
+                    String tmp = "";
+
+                    while((tmp = reader.readLine()) != null)
+                        json.append(tmp).append("\n");
+                    reader.close();
+
+                    data = new JSONObject(json.toString());
+
+                    if(data.getInt("cod") != 200) {
+                        System.out.println("Cancelled");
+                        return null;
+                    }
+                    double tp =(data.getJSONObject("main").getDouble("temp"))+-273.15;
+                    System.out.println(tp);
+//                    imageView.setImageURI();
+                } catch (Exception e) {
+
+                    System.out.println("Exception "+ e.getMessage());
+                    return null;
+                }
+
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void Void) {
+                if(data!=null){
+                    Log.d("my weather received",data.toString());
+                }
+
+            }
+        }.execute();
+
+    }
+
 
     private void remove() {
         imageView.setImageResource(R.drawable.clickme);
