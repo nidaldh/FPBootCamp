@@ -59,12 +59,11 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
-    int flag=0;
-    GridLayout minGrad;
-    public ImageView imageView ;
+    private GridLayout minGrad;
+    private ImageView imageView ;
     private Button btn;
-    ProgressBar progressBar;
-    private static final String IMAGE_DIRECTORY = "/demonuts";
+    private ProgressBar progressBar;
+    private static final String IMAGE_DIRECTORY = "/project";
     private int GALLERY = 1, CAMERA = 2;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +73,89 @@ public class MainActivity extends AppCompatActivity {
 
         minGrad = (GridLayout) findViewById(R.id.minGrad);
         setSingleEvent(minGrad);
+    }
+
+    private void  requestMultiplePermissions(){
+        Dexter.withActivity(this)
+                .withPermissions(
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        Manifest.permission.READ_EXTERNAL_STORAGE)
+                .withListener(new MultiplePermissionsListener() {
+                    @Override
+                    public void onPermissionsChecked(MultiplePermissionsReport report) {
+                        // check if all permissions are granted
+                        if (report.areAllPermissionsGranted()) {
+                            Toast.makeText(getApplicationContext(), "All permissions are granted by user!", Toast.LENGTH_SHORT).show();
+                        }
+
+                        // check for permanent denial of any permission
+                        if (report.isAnyPermissionPermanentlyDenied()) {
+                            // show alert dialog navigating to Settings
+                            //openSettingsDialog();
+                        }
+                    }
+
+                    @Override
+                    public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
+                        token.continuePermissionRequest();
+                    }
+                }).
+                withErrorListener(new PermissionRequestErrorListener() {
+                    @Override
+                    public void onError(DexterError error) {
+                        Toast.makeText(getApplicationContext(), "Some Error! ", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .onSameThread()
+                .check();
+    }
+
+    private void setSingleEvent(GridLayout mainGrid) {
+        //Loop all child item of Main Grid
+        for (int i = 0; i < mainGrid.getChildCount(); i++) {
+            //You can see , all child item is CardView , so we just cast object to CardView
+//            CardView cardView = (CardView) mainGrid.getChildAt(i);
+            final CardView cardView = (CardView) mainGrid.getChildAt(i);
+            cardView.setOnClickListener(new View.OnClickListener(){
+
+                @Override
+                public void onClick(View view) {
+                    LinearLayout linearLayout = (LinearLayout) cardView.getChildAt(0);
+                    imageView = (ImageView) linearLayout.getChildAt(1);
+                    progressBar = (ProgressBar) linearLayout.getChildAt(0);
+
+                    final CharSequence[] items = {"Take Photo", "Choose from Library","Cat",
+                            "Cancel","Remove"};
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    builder.setItems(items, (dialog, item) -> {
+                        if (items[item].equals("Take Photo")) {
+                            takeImage();
+                        } else if (items[item].equals("Choose from Library")) {
+                            loadImage();
+                        }else if (items[item].equals("Cat")){
+                            if(isNetworkAvailable())
+                                featchImage();
+                            else Toast.makeText(MainActivity.this, "Please connect to internet", Toast.LENGTH_SHORT).show();
+                        }else if (items[item].equals("Remove")){
+                            remove();
+                        }
+                        else if (items[item].equals("Cancel")) {
+                            dialog.dismiss();
+                        }
+                    });
+                    builder.show();
+                }
+            });
+        }
+
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
     void featchImage(){
@@ -138,111 +220,6 @@ public class MainActivity extends AppCompatActivity {
 
                     }
                 });    }
-
-    private void setSingleEvent(GridLayout mainGrid) {
-        //Loop all child item of Main Grid
-        for (int i = 0; i < mainGrid.getChildCount(); i++) {
-            //You can see , all child item is CardView , so we just cast object to CardView
-//            CardView cardView = (CardView) mainGrid.getChildAt(i);
-            final CardView cardView = (CardView) mainGrid.getChildAt(i);
-            cardView.setOnClickListener(new View.OnClickListener(){
-
-                @Override
-                public void onClick(View view) {
-                    LinearLayout linearLayout = (LinearLayout) cardView.getChildAt(0);
-                    imageView = (ImageView) linearLayout.getChildAt(1);
-                    progressBar = (ProgressBar) linearLayout.getChildAt(0);
-
-                    final CharSequence[] items = {"Take Photo", "Choose from Library","Cat",
-                            "Cancel","Remove"};
-                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                    builder.setItems(items, (dialog, item) -> {
-                        if (items[item].equals("Take Photo")) {
-                            takeImage();
-                        } else if (items[item].equals("Choose from Library")) {
-                            loadImage();
-                        }else if (items[item].equals("Cat")){
-                            if(isNetworkAvailable())
-                            featchImage();
-                            else Toast.makeText(MainActivity.this, "Please connect to internet", Toast.LENGTH_SHORT).show();
-                        }else if (items[item].equals("Remove")){
-                            remove();
-                        }
-                        else if (items[item].equals("Cancel")) {
-                            dialog.dismiss();
-                        }
-                    });
-                    builder.show();
-                }
-            });
-        }
-
-    }
-
-
-    private boolean isNetworkAvailable() {
-        ConnectivityManager connectivityManager
-                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-    }
-    JSONObject data = null;
-
-    public void getJSON(final String city) {
-        System.out.println("hi");
-        new AsyncTask<Void, Void, Void>() {
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-
-            }
-            @SuppressLint("WrongThread")
-            @Override
-            protected Void doInBackground(Void... params) {
-                System.out.println("hi2");
-                try {
-                    System.out.println("hi3");
-                    URL url = new URL("https://api.thecatapi.com/v1/images/search");
-                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                    BufferedReader reader =
-                            new BufferedReader(new InputStreamReader(connection.getInputStream()));
-
-                    StringBuffer json = new StringBuffer(1024);
-                    String tmp = "";
-
-                    while((tmp = reader.readLine()) != null)
-                        json.append(tmp).append("\n");
-                    reader.close();
-
-                    data = new JSONObject(json.toString());
-
-                    if(data.getInt("cod") != 200) {
-                        System.out.println("Cancelled");
-                        return null;
-                    }
-                    double tp =(data.getJSONObject("main").getDouble("temp"))+-273.15;
-                    System.out.println(tp);
-//                    imageView.setImageURI();
-                } catch (Exception e) {
-
-                    System.out.println("Exception "+ e.getMessage());
-                    return null;
-                }
-
-                return null;
-            }
-
-            @Override
-            protected void onPostExecute(Void Void) {
-                if(data!=null){
-                    Log.d("my weather received",data.toString());
-                }
-
-            }
-        }.execute();
-
-    }
-
 
     private void remove() {
         imageView.setImageResource(R.drawable.clickme);
@@ -312,41 +289,7 @@ public class MainActivity extends AppCompatActivity {
         }
         return "";
     }
-    private void  requestMultiplePermissions(){
-        Dexter.withActivity(this)
-                .withPermissions(
-                        Manifest.permission.CAMERA,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                        Manifest.permission.READ_EXTERNAL_STORAGE)
-                .withListener(new MultiplePermissionsListener() {
-                    @Override
-                    public void onPermissionsChecked(MultiplePermissionsReport report) {
-                        // check if all permissions are granted
-                        if (report.areAllPermissionsGranted()) {
-                            Toast.makeText(getApplicationContext(), "All permissions are granted by user!", Toast.LENGTH_SHORT).show();
-                        }
 
-                        // check for permanent denial of any permission
-                        if (report.isAnyPermissionPermanentlyDenied()) {
-                            // show alert dialog navigating to Settings
-                            //openSettingsDialog();
-                        }
-                    }
-
-                    @Override
-                    public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
-                        token.continuePermissionRequest();
-                    }
-                }).
-                withErrorListener(new PermissionRequestErrorListener() {
-                    @Override
-                    public void onError(DexterError error) {
-                        Toast.makeText(getApplicationContext(), "Some Error! ", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .onSameThread()
-                .check();
-    }
     private void takeImage() {
         Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
         startActivityForResult(intent, CAMERA);    }
