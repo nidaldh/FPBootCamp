@@ -9,6 +9,6 @@ public interface CatImage {
         // we set query to put the variable in the url in get method
 //        https://api.thecatapi.com/v1/images/search?format=json
         @GET("/v1/images/search")
-        Call<List<CatResponse>> get(@Query("format") String format);
+        Call<List<CatResponse>> get(@Query("format") String format, @Query("x-api-key") String token);
 
 }

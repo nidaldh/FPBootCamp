@@ -7,11 +7,14 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaScannerConnection;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -23,6 +26,7 @@ import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.karumi.dexter.Dexter;
@@ -32,6 +36,7 @@ import com.karumi.dexter.listener.DexterError;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.PermissionRequestErrorListener;
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
+import com.squareup.picasso.Picasso;
 
 import org.json.JSONObject;
 
@@ -54,11 +59,11 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
-
+    int flag=0;
     GridLayout minGrad;
     public ImageView imageView ;
     private Button btn;
-
+    ProgressBar progressBar;
     private static final String IMAGE_DIRECTORY = "/demonuts";
     private int GALLERY = 1, CAMERA = 2;
     @Override
@@ -68,11 +73,12 @@ public class MainActivity extends AppCompatActivity {
         requestMultiplePermissions();
 
         minGrad = (GridLayout) findViewById(R.id.minGrad);
-//        imageView = (ImageView) findViewById(R.id.image1);
         setSingleEvent(minGrad);
     }
 
     void featchImage(){
+        progressBar.setVisibility(View.VISIBLE);
+        imageView.setVisibility(View.GONE);
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://api.thecatapi.com")
                 .addConverterFactory(GsonConverterFactory.create())
@@ -82,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
 
         System.out.println("hi");
 
-        service.get("json").enqueue(new Callback<List<CatResponse>>() {
+        service.get("json" , "6d040c9d-5c1e-4620-91d9-c75f42c727a8").enqueue(new Callback<List<CatResponse>>() {
             @Override
             public void onResponse(Call<List<CatResponse>> call, Response<List<CatResponse>> response) {
                 System.out.println("hi");
@@ -95,24 +101,13 @@ public class MainActivity extends AppCompatActivity {
 //                        e.printStackTrace();
                         Log.d("RESPONSEERROR",e.getMessage());
                         Toast.makeText(MainActivity.this, "RESPONSEERROR1", Toast.LENGTH_SHORT).show();
-
                     }
                     return;
                 }else {
                     System.out.println(response.body().get(0).mUrl);
-
-//                    progressBar.setVisibility(View.GONE);
-//                    left.setVisibility(View.VISIBLE);
-//                    let.setVisibility(View.VISIBLE);
-//                    linearLayout.setVisibility(View.VISIBLE);
-
-//                    right.setVisibility(View.VISIBLE);
-//                    System.out.println(response.body().getmMain().getmTemp());
-//                    left.setText(response.body().getmWeather().get(0).getmDescription());
-//                    right.setText(df2.format(response.body().getmMain().getmTemp() - 273.15)+"°");
-
-                    //                    response.body().getmMain().getmTemp();
-
+                    LoadImageFromUrl(response.body().get(0).mUrl.toString());
+                    imageView.setVisibility(View.VISIBLE);
+                    progressBar.setVisibility(View.GONE);
                 }
 
             }
@@ -128,6 +123,22 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    private void LoadImageFromUrl(String url) {
+        Picasso.with(this).load(url)
+                .into(imageView,new com.squareup.picasso.Callback(){
+
+
+                    @Override
+                    public void onSuccess() {
+
+                    }
+
+                    @Override
+                    public void onError() {
+
+                    }
+                });    }
+
     private void setSingleEvent(GridLayout mainGrid) {
         //Loop all child item of Main Grid
         for (int i = 0; i < mainGrid.getChildCount(); i++) {
@@ -139,8 +150,10 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View view) {
                     LinearLayout linearLayout = (LinearLayout) cardView.getChildAt(0);
-                    imageView = (ImageView) linearLayout.getChildAt(0);
-                    final CharSequence[] items = {"Take Photo", "Choose from Library",
+                    imageView = (ImageView) linearLayout.getChildAt(1);
+                    progressBar = (ProgressBar) linearLayout.getChildAt(0);
+
+                    final CharSequence[] items = {"Take Photo", "Choose from Library","Cat",
                             "Cancel","Remove"};
                     AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
                     builder.setItems(items, (dialog, item) -> {
@@ -148,10 +161,12 @@ public class MainActivity extends AppCompatActivity {
                             takeImage();
                         } else if (items[item].equals("Choose from Library")) {
                             loadImage();
-                        }else if (items[item].equals("Remove")){
-//                            remove();
+                        }else if (items[item].equals("Cat")){
+                            if(isNetworkAvailable())
                             featchImage();
-//                        getJSON("s");
+                            else Toast.makeText(MainActivity.this, "Please connect to internet", Toast.LENGTH_SHORT).show();
+                        }else if (items[item].equals("Remove")){
+                            remove();
                         }
                         else if (items[item].equals("Cancel")) {
                             dialog.dismiss();
@@ -162,6 +177,14 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+    }
+
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
     JSONObject data = null;
 
